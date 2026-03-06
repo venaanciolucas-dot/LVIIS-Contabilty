@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --bg-color: #030303;
+  /* Fundo extra escuro, quase preto absoluto */
+  --panel-bg: #0A0A0A;
+  /* Fundo de painéis muito sutil */
+  --panel-hover: #141414;
+  /* Hover state discreto */
+  --text-color: #FFFFFF;
+  --text-muted: #888888;
+  /* Texto secundário acinzentado */
+  --primary-color: #007AFF;
+  /* Azul vibrante (Accent LVIIS) */
+  --success-color: #28CD41;
+  --danger-color: #FF3B30;
+  --warning-color: #FFCC00;
+  --border-radius: 6px;
+  /* Bordas mais afiadas e minimalistas */
+  --font-family: 'Montserrat', sans-serif;
+  --border-color: #1F1F1F;
+  /* Cor para bordas sutis */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: var(--font-family);
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input,
+select,
+textarea {
+  font-family: var(--font-family);
+  border: 1px solid #333;
+  border-radius: var(--border-radius);
+  background: #111;
+  color: #fff;
+  padding: 12px;
+}
+
+input:focus {
+  outline: 1px solid var(--primary-color);
+  border-color: var(--primary-color);
+}
