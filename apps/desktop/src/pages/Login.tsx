@@ -77,13 +77,7 @@ export function Login() {
                     </button>
                 </form>
 
-                <button
-                    className="toggle-mode-btn"
-                    onClick={() => setIsLogin(!isLogin)}
-                    type="button"
-                >
-                    {isLogin ? 'Ainda não tem conta? Criar uma.' : 'Já tem conta? Entrar.'}
-                </button>
+
             </div>
         </div>
     );

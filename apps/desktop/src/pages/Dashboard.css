@@ -19,6 +19,12 @@
     color: var(--text-muted);
 }
 
+.filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .period-select {
     padding: 10px 16px;
     background-color: var(--panel-hover);
@@ -27,6 +33,18 @@
     border-radius: var(--border-radius);
     cursor: pointer;
     font-weight: 500;
+}
+
+.date-range-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.date-separator-inline {
+    color: var(--text-muted);
+    font-size: 13px;
+    white-space: nowrap;
 }
 
 /* CARDS */
@@ -107,12 +125,16 @@
     border-radius: 20px;
 }
 
+.card-status.status-good { color: #34C759; }
+.card-status.status-warn { color: #FFD60A; }
+.card-status.status-bad  { color: #FF3B30; }
+
 /* GRID PANELS */
 .dashboard-grid {
     display: grid;
     grid-template-columns: 2fr 1fr;
     gap: 20px;
-    height: 400px;
+    min-height: 400px;
 }
 
 .panel {

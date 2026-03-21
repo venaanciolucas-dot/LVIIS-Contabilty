@@ -14,11 +14,13 @@
     "@repo/core": "workspace:*",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
+    "@vercel/node": "^5.6.18",
     "lucide-react": "^0.477.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.2.0",
-    "recharts": "^2.15.1"
+    "recharts": "^2.15.1",
+    "stripe": "^20.4.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

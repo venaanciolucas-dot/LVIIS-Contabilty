@@ -58,3 +58,88 @@ input:focus {
   outline: 1px solid var(--primary-color);
   border-color: var(--primary-color);
 }
+
+/* Força o tema escuro nos popups do SO (ex: calendário do input date) */
+input {
+  color-scheme: dark;
+  font-family: var(--font-family);
+}
+
+/* Custom File Input */
+input[type="file"] {
+  background: transparent;
+  padding: 8px 0;
+  border: none;
+  color: var(--text-muted);
+}
+
+input[type="file"]::file-selector-button {
+  font-family: var(--font-family);
+  border: 1px solid #333;
+  padding: 8px 16px;
+  border-radius: var(--border-radius);
+  background-color: #222;
+  color: white;
+  transition: all 0.2s;
+  cursor: pointer;
+  margin-right: 12px;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background-color: #333;
+  border-color: #444;
+}
+
+/* Custom Date Input Calendar Icon */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(0.8);
+  cursor: pointer;
+}
+
+/* Custom Radio */
+input[type="radio"] {
+  accent-color: var(--primary-color);
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+}
+
+/* Status Select na tabela */
+.status-select {
+  appearance: none;
+  background-color: transparent;
+  border: 1px solid transparent;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.status-select:focus,
+.status-select:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(0,0,0,0.2);
+}
+
+.status-select.paid {
+  color: var(--success-color);
+  background-color: rgba(52, 199, 89, 0.1);
+}
+.status-select.pending {
+  color: var(--warning-color);
+  background-color: rgba(255, 204, 0, 0.1);
+}
+.status-select.overdue {
+  color: var(--danger-color);
+  background-color: rgba(255, 59, 48, 0.1);
+}
+.status-select option {
+  background-color: var(--panel-bg);
+  color: white;
+}
