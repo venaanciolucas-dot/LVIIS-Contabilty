@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { fetchStripeTransactions } from '../services/stripe';
 
 export type TransactionType = 'income' | 'expense';
