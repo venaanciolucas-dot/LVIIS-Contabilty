@@ -8,6 +8,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
+        // @ts-ignore
         const stripeKey = process.env.STRIPE_SECRET_KEY;
         
         // Verifica se a chave foi configurada no Vercel/Ambiente
@@ -16,6 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const stripe = new Stripe(stripeKey, {
+            // @ts-ignore - Stripe SDK version mismatch with strictly typed old version
             apiVersion: '2023-10-16',
         });
 
@@ -32,12 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const dateObj = new Date(tx.created * 1000);
             const dateStr = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
             
-            // O valor no Stripe vem em centavos (ex: 5000 = R$ 50,00)
-            const amount = tx.amount / 100;
-            const fee = tx.fee / 100;
-
             // Busca forma de pagamento se disponível no source (Charge object)
-            // Em implementações avançadas, buscaria a PaymentIntent associada
             let method = 'Cartão de Crédito';
             if (tx.description && tx.description.toLowerCase().includes('pix')) method = 'PIX';
             if (tx.description && tx.description.toLowerCase().includes('boleto')) method = 'Boleto';
