@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { fetchStripeTransactions } from '../services/stripe';
+import { supabase } from '@repo/api';
 
 export type TransactionType = 'income' | 'expense';
 
@@ -19,119 +20,141 @@ export interface Transaction {
 interface TransactionsContextData {
     transactions: Transaction[];
     categories: string[];
-    addTransaction: (tx: Omit<Transaction, 'id'>) => void;
-    editTransaction: (id: string, tx: Omit<Transaction, 'id'>) => void;
-    deleteTransaction: (id: string) => void;
-    markAsPaid: (id: string) => void;
-    toggleTransactionStatus: (id: string) => void;
-    updateTransactionStatus: (id: string, status: 'paid' | 'pending') => void;
-    addCategory: (category: string) => void;
+    addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
+    editTransaction: (id: string, tx: Omit<Transaction, 'id'>) => Promise<void>;
+    deleteTransaction: (id: string) => Promise<void>;
+    markAsPaid: (id: string) => Promise<void>;
+    toggleTransactionStatus: (id: string) => Promise<void>;
+    updateTransactionStatus: (id: string, status: 'paid' | 'pending') => Promise<void>;
+    addCategory: (category: string) => Promise<void>;
+    isLoading: boolean;
 }
 
 const TransactionsContext = createContext<TransactionsContextData>({} as TransactionsContextData);
 
 export function TransactionsProvider({ children }: { children: ReactNode }) {
     const DEFAULT_CATEGORIES = ['Serviços', 'Equipamentos', 'SaaS', 'Serviços Recorrentes', 'Impostos', 'Salários', 'Infraestrutura'];
-    // Sem dados fictícios - as receitas virão da API do Stripe e as despesas da inserção manual
-    const DEFAULT_TRANSACTIONS: Transaction[] = [];
+    
+    const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const [categories, setCategories] = useState<string[]>(() => {
-        try {
-            const saved = localStorage.getItem('lviis_categories');
-            return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
-        } catch { return DEFAULT_CATEGORIES; }
-    });
-
-    const [transactions, setTransactions] = useState<Transaction[]>(() => {
-        try {
-            const saved = localStorage.getItem('lviis_transactions');
-            if (saved) {
-                const parsed = JSON.parse(saved) as Transaction[];
-                // Remove os dados fictícios iniciais (que tinham IDs fixos '1' até '7')
-                // Mantém apenas o que o usuário incluiu de fato (que tem IDs do tipo '17740...') ou id do Stripe ('ch_', 'txn_')
-                const mockIds = ['1', '2', '3', '4', '5', '6', '7'];
-                return parsed.filter(tx => !mockIds.includes(tx.id));
-            }
-            return DEFAULT_TRANSACTIONS;
-        } catch { return DEFAULT_TRANSACTIONS; }
-    });
-
-    // Persiste no localStorage sempre que os dados mudam
-    React.useEffect(() => {
-        try { localStorage.setItem('lviis_transactions', JSON.stringify(transactions)); } catch {}
-    }, [transactions]);
-
-    React.useEffect(() => {
-        try { localStorage.setItem('lviis_categories', JSON.stringify(categories)); } catch {}
-    }, [categories]);
-
-    // Busca dados do Stripe ao carregar o Contexto (exemplo de inicialização única)
+    // Carregamento inicial do Supabase + Stripe
     React.useEffect(() => {
         let isMounted = true;
-        const syncStripe = async () => {
-            const stripeTxs = await fetchStripeTransactions();
-            if (isMounted && stripeTxs.length > 0) {
-                setTransactions(prev => {
-                    // Mantem apenas as transações manuais (despesas locais não tem prefixo 'txn_' ou 'ch_')
-                    const manualTxs = prev.filter(tx => !tx.id.startsWith('txn_') && !tx.id.startsWith('ch_'));
-                    // Junta com as fresquinhas vindas da API do Stripe
-                    return [...stripeTxs, ...manualTxs];
-                });
+        
+        const loadInitialData = async () => {
+            try {
+                // 1. Carrega categorias do Supabase
+                const { data: catData, error: catError } = await supabase.from('categories').select('name');
+                if (!catError && catData && isMounted) {
+                    if (catData.length > 0) {
+                        setCategories(catData.map(c => c.name));
+                    }
+                }
+
+                // 2. Carrega despesas/receitas manuais do Supabase
+                // Ordernar da mais recente para a mais antiga (assumindo que a API retorna como inseridas, ou podemos ordenar por data dps)
+                const { data: txData, error: txError } = await supabase.from('transactions').select('*');
+                let manualTxs: Transaction[] = [];
+                if (!txError && txData) {
+                    manualTxs = txData as Transaction[];
+                }
+
+                // 3. Carrega o Stripe online
+                const stripeTxs = await fetchStripeTransactions();
+
+                if (isMounted) {
+                    // Mescla os dois mundos (Stripe sendo garantido por ID unico)
+                    setTransactions([...stripeTxs, ...manualTxs]);
+                }
+            } catch (error) {
+                console.error('Erro geral ao carregar dados:', error);
+            } finally {
+                if (isMounted) setIsLoading(false);
             }
         };
-        syncStripe();
+
+        loadInitialData();
         return () => { isMounted = false; };
     }, []);
 
-    const addTransaction = (tx: Omit<Transaction, 'id'>) => {
-        const newTx = { ...tx, id: String(Date.now()) };
-        setTransactions(prev => [newTx, ...prev]);
-        if (tx.category && !categories.includes(tx.category)) {
-            setCategories(prev => [...prev, tx.category]);
+    const addTransaction = async (tx: Omit<Transaction, 'id'>) => {
+        const { data, error } = await supabase.from('transactions').insert([tx]).select().single();
+        if (!error && data) {
+            setTransactions(prev => [data as Transaction, ...prev]);
+            if (tx.category && !categories.includes(tx.category)) {
+                await addCategory(tx.category);
+            }
+        } else {
+            console.error('Erro ao adicionar transação:', error);
+            alert('Falha ao salvar transação na nuvem.');
         }
     };
 
-    const editTransaction = (id: string, updatedTx: Omit<Transaction, 'id'>) => {
-        setTransactions(prev => prev.map(tx => tx.id === id ? { ...updatedTx, id } : tx));
-        if (updatedTx.category && !categories.includes(updatedTx.category)) {
-            setCategories(prev => [...prev, updatedTx.category]);
+    const editTransaction = async (id: string, updatedTx: Omit<Transaction, 'id'>) => {
+        const { error } = await supabase.from('transactions').update(updatedTx).eq('id', id);
+        if (!error) {
+            setTransactions(prev => prev.map(tx => tx.id === id ? { ...updatedTx, id } : tx));
+            if (updatedTx.category && !categories.includes(updatedTx.category)) {
+                await addCategory(updatedTx.category);
+            }
+        } else {
+            console.error('Erro ao editar:', error);
         }
     };
 
-    const deleteTransaction = (id: string) => {
-        setTransactions(prev => prev.filter(tx => tx.id !== id));
+    const deleteTransaction = async (id: string) => {
+        // Se for transação do Stripe, bloquamos a exclusão pelo sistema
+        if (id.startsWith('ch_') || id.startsWith('txn_')) {
+            alert('Transações financeiras do Stripe não podem ser apagadas pelo painel por segurança.');
+            return;
+        }
+
+        const { error } = await supabase.from('transactions').delete().eq('id', id);
+        if (!error) {
+            setTransactions(prev => prev.filter(tx => tx.id !== id));
+        } else {
+             console.error('Erro ao excluir:', error);
+        }
     };
 
-    const markAsPaid = (id: string) => {
-        setTransactions(prev => prev.map(tx => tx.id === id ? { ...tx, status: 'paid' } : tx));
+    const markAsPaid = async (id: string) => {
+        const { error } = await supabase.from('transactions').update({ status: 'paid' }).eq('id', id);
+        if (!error) {
+            setTransactions(prev => prev.map(tx => tx.id === id ? { ...tx, status: 'paid' } : tx));
+        }
     };
 
-    const toggleTransactionStatus = (id: string) => {
-        setTransactions(prev => prev.map(tx => {
-            if (tx.id === id) {
-                return { ...tx, status: tx.status === 'paid' ? 'pending' : 'paid' };
-            }
-            return tx;
-        }));
+    const toggleTransactionStatus = async (id: string) => {
+        const txTarget = transactions.find(t => t.id === id);
+        if (!txTarget) return;
+        const newStatus = txTarget.status === 'paid' ? 'pending' : 'paid';
+
+        const { error } = await supabase.from('transactions').update({ status: newStatus }).eq('id', id);
+        if (!error) {
+            setTransactions(prev => prev.map(tx => tx.id === id ? { ...tx, status: newStatus } : tx));
+        }
     };
 
-    const updateTransactionStatus = (id: string, newStatus: 'paid' | 'pending') => {
-        setTransactions(prev => prev.map(tx => {
-            if (tx.id === id) {
-                return { ...tx, status: newStatus };
-            }
-            return tx;
-        }));
+    const updateTransactionStatus = async (id: string, newStatus: 'paid' | 'pending') => {
+        const { error } = await supabase.from('transactions').update({ status: newStatus }).eq('id', id);
+        if (!error) {
+            setTransactions(prev => prev.map(tx => tx.id === id ? { ...tx, status: newStatus } : tx));
+        }
     };
 
-    const addCategory = (category: string) => {
+    const addCategory = async (category: string) => {
         if (!categories.includes(category)) {
-            setCategories(prev => [...prev, category]);
+            const { error } = await supabase.from('categories').insert([{ name: category }]);
+            if (!error) {
+                setCategories(prev => [...prev, category]);
+            }
         }
     };
 
     return (
-        <TransactionsContext.Provider value={{ transactions, categories, addTransaction, editTransaction, deleteTransaction, markAsPaid, toggleTransactionStatus, updateTransactionStatus, addCategory }}>
+        <TransactionsContext.Provider value={{ transactions, categories, addTransaction, editTransaction, deleteTransaction, markAsPaid, toggleTransactionStatus, updateTransactionStatus, addCategory, isLoading }}>
             {children}
         </TransactionsContext.Provider>
     );
