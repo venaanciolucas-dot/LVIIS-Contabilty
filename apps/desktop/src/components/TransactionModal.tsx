@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Loader } from 'lucide-react';
 import { useTransactions, Transaction } from '../contexts/TransactionsContext';
+import { supabase } from '@repo/api';
 import './TransactionModal.css';
 
 interface TransactionModalProps {
@@ -23,6 +24,7 @@ export function TransactionModal({ isOpen, onClose, defaultType = 'expense', ini
     const [isRecurring, setIsRecurring] = useState(false);
     const [status, setStatus] = useState<'paid'|'pending'>('pending');
     const [attachment, setAttachment] = useState<File | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -55,15 +57,32 @@ export function TransactionModal({ isOpen, onClose, defaultType = 'expense', ini
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsSubmitting(true);
         
         // Conversão da data (YYYY-MM-DD para DD/MM/YYYY)
         const [y, m, d] = date.split('-');
         const formattedDate = `${d}/${m}/${y}`;
         
         const finalCategory = isCreatingCategory && newCategory.trim() ? newCategory.trim() : category;
-        const attachmentUrl = attachment ? URL.createObjectURL(attachment) : initialData?.attachment;
+        
+        let finalAttachmentUrl = initialData?.attachment || '';
+
+        // Tenta realizar o upload do arquivo caso um novo comprovante tenha sido selecionado
+        if (attachment) {
+            const ext = attachment.name.split('.').pop();
+            const filename = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
+            
+            const { data, error } = await supabase.storage.from('attachments').upload(filename, attachment);
+            if (error) {
+                console.error('Erro de upload:', error);
+                alert(`Erro ao subir o anexo. Lembre-se de criar o bucket público "attachments" no Supabase!`);
+            } else if (data) {
+                const { data: publicUrlData } = supabase.storage.from('attachments').getPublicUrl(filename);
+                finalAttachmentUrl = publicUrlData.publicUrl;
+            }
+        }
 
         const txData = {
             description,
@@ -74,15 +93,13 @@ export function TransactionModal({ isOpen, onClose, defaultType = 'expense', ini
             type: type as 'income' | 'expense',
             status: type === 'expense' ? status : 'paid',
             isRecurring,
-            attachment: attachmentUrl
+            attachment: finalAttachmentUrl
         };
 
         if (initialData) {
-            editTransaction(initialData.id, txData);
-            alert(`Transação atualizada com sucesso!\n\nValor: R$ ${amount}\nDesc: ${description}`);
+            await editTransaction(initialData.id, txData);
         } else {
-            addTransaction(txData);
-            alert(`Transação adicionada com sucesso!\n\nValor: R$ ${amount}\nDesc: ${description}`);
+            await addTransaction(txData);
         }
         
         // Reset and close
@@ -93,6 +110,7 @@ export function TransactionModal({ isOpen, onClose, defaultType = 'expense', ini
         setIsCreatingCategory(false);
         setAttachment(null);
         setStatus('pending');
+        setIsSubmitting(false);
         onClose();
     };
 
@@ -203,7 +221,13 @@ export function TransactionModal({ isOpen, onClose, defaultType = 'expense', ini
 
                     <footer className="modal-footer">
                         <button type="button" className="secondary-btn" onClick={onClose}>Cancelar</button>
-                        <button type="submit" className="primary-btn submit-btn">Confirmar</button>
+                        <button type="submit" className="primary-btn submit-btn" disabled={isSubmitting}>
+                            {isSubmitting ? (
+                                <><Loader className="spinner" size={20} /> SALVANDO...</>
+                            ) : (
+                                initialData ? 'ATUALIZAR' : 'CADASTRAR'
+                            )}
+                        </button>
                     </footer>
                 </form>
             </div>
