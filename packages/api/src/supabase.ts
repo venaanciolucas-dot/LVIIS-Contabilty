@@ -1,27 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
 
-const getSupabaseUrl = () => {
-    // @ts-ignore
-    try { if (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_SUPABASE_URL) return process.env.EXPO_PUBLIC_SUPABASE_URL; } catch (e) { }
-    // @ts-ignore
-    try { if (typeof process !== 'undefined' && process.env.VITE_SUPABASE_URL) return process.env.VITE_SUPABASE_URL; } catch (e) { }
-    // @ts-ignore
-    try { if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SUPABASE_URL) return import.meta.env.VITE_SUPABASE_URL; } catch (e) { }
-    return '';
-};
+// Lê a URL e a chave do ambiente (Vite injeta via import.meta.env)
+// @ts-ignore
+const supabaseUrl: string = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_URL) || '';
+// @ts-ignore
+const supabaseKey: string = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_ANON_KEY) || '';
 
-const getSupabaseKey = () => {
-    // @ts-ignore
-    try { if (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) return process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY; } catch (e) { }
-    // @ts-ignore
-    try { if (typeof process !== 'undefined' && process.env.VITE_SUPABASE_ANON_KEY) return process.env.VITE_SUPABASE_ANON_KEY; } catch (e) { }
-    // @ts-ignore
-    try { if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SUPABASE_ANON_KEY) return import.meta.env.VITE_SUPABASE_ANON_KEY; } catch (e) { }
-    return '';
-};
+// Criamos um cliente "dummy" que não quebra se as chaves estiverem ausentes
+// O app vai funcionar sem banco de dados, exibindo somente os dados do Stripe
+export const supabase = createClient(
+    supabaseUrl || 'https://placeholder.supabase.co',
+    supabaseKey || 'placeholder-key',
+    {
+        auth: {
+            persistSession: true,
+        },
+    }
+);
 
-export const supabase = createClient(getSupabaseUrl(), getSupabaseKey(), {
-    auth: {
-        persistSession: true,
-    },
-});
+// Flag para verificar se o Supabase está realmente configurado
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseKey);
