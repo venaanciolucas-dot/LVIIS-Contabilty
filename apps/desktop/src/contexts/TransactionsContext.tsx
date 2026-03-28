@@ -65,7 +65,14 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
                 const stripeTxs = await fetchStripeTransactions();
 
                 if (isMounted) {
-                    setTransactions([...stripeTxs, ...manualTxs]);
+                    const parseDate = (str: string) => {
+                        const [d, m, y] = str.split('/').map(Number);
+                        return new Date(y, m - 1, d).getTime();
+                    };
+                    const allTxs = [...stripeTxs, ...manualTxs].sort(
+                        (a, b) => parseDate(b.date) - parseDate(a.date)
+                    );
+                    setTransactions(allTxs);
                 }
             } catch (error) {
                 console.error('Erro ao carregar dados:', error);
